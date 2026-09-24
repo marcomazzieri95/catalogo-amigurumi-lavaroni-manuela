@@ -6,8 +6,6 @@
 <title>Catalogo Amigurumi di Manuela Lavaroni</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<!-- Libreria per la generazione dinamica del QR Code -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root{
     --bg:#F6F1E7;
@@ -469,6 +467,9 @@
   .qr-footer-box #footer-qrcode img {
     display: block;
     margin: 0 auto;
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
   }
   .qr-footer-label {
     font-family: 'IBM Plex Mono', monospace;
@@ -963,7 +964,9 @@
       
       <!-- Box QR Code in Basso a Destra -->
       <div class="qr-footer-box">
-        <div id="footer-qrcode"></div>
+        <div id="footer-qrcode">
+          <img src="qr-code.png" alt="QR Code Catalogo">
+        </div>
         <span class="qr-footer-label">Inquadra per accedere</span>
       </div>
     </div>
@@ -2003,18 +2006,11 @@ function exportPdf(){
         </div>
       </div>
       <div id="qrcode" style="text-align:center;">
-        <div id="qrcode-img"></div>
+        <img src="qr-code.png" alt="QR Code" style="width:64px;height:64px;display:block;margin:0 auto;">
         <span style="font-size:8px;font-family:'IBM Plex Mono',monospace;display:block;margin-top:2px;">Inquadra per il catalogo</span>
       </div>
     </div>
     <div class="pgrid">${itemsHtml}</div>`;
-
-  new QRCode(document.getElementById("qrcode-img"), {
-    text: window.location.href,
-    width: 64,
-    height: 64,
-    correctLevel : QRCode.CorrectLevel.H
-  });
 
   setTimeout(() => { window.print(); }, 250);
 }
@@ -2070,20 +2066,6 @@ async function handleImportFile(e){
   }
 }
 
-// Generazione automatica QR Code nel Footer
-function initFooterQRCode() {
-  const qrContainer = document.getElementById("footer-qrcode");
-  if (qrContainer) {
-    qrContainer.innerHTML = "";
-    new QRCode(qrContainer, {
-      text: window.location.href,
-      width: 72,
-      height: 72,
-      correctLevel: QRCode.CorrectLevel.H
-    });
-  }
-}
-
 // Gestione visibilità pulsante "Torna in Alto"
 const backToTopBtn = document.getElementById('backToTopBtn');
 window.addEventListener('scroll', () => {
@@ -2126,7 +2108,6 @@ document.getElementById('importFile').addEventListener('change', handleImportFil
 
 // Avvio
 fetchProducts();
-initFooterQRCode();
 </script>
 </body>
 </html>
