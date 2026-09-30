@@ -923,7 +923,13 @@
   .loading{text-align:center;padding:60px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:13px;}
 
   @media (max-width:600px){
-    header{flex-direction:column;align-items:flex-start;}
+    header{flex-direction:row;align-items:flex-start;gap:10px;margin-bottom:20px;}
+    .theme-toggle-btn{
+      width:40px;height:40px;padding:0;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:18px;flex-shrink:0;margin-top:2px;
+    }
+    .theme-lbl{display:none;}
     h1{font-size:30px;}
     body{padding:12px 6px 60px;}
     .grid-2col, .grid-3col{grid-template-columns:1fr;}
@@ -1025,7 +1031,7 @@
       <h1>Catalogo Amigurumi di Manuela Lavaroni</h1>
       <p class="sub">Esplora e naviga i pezzi artigianali unici realizzati a mano.</p>
     </div>
-    <button class="theme-toggle-btn" id="themeToggleBtn">🌙 Tema Scuro</button>
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Cambia tema" aria-label="Cambia tema"><span class="theme-ico">🌙</span><span class="theme-lbl"> Tema Scuro</span></button>
   </header>
 
   <div class="toolbar">
@@ -1174,28 +1180,34 @@ function requireUnlock(action){
   if(isUnlocked) action();
 }
 
+function setThemeButton(isDark) {
+  const themeBtn = document.getElementById('themeToggleBtn');
+  themeBtn.querySelector('.theme-ico').textContent = isDark ? '☀️' : '🌙';
+  themeBtn.querySelector('.theme-lbl').textContent = isDark ? ' Tema Chiaro' : ' Tema Scuro';
+  themeBtn.setAttribute('aria-label', isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro');
+  themeBtn.title = isDark ? 'Passa al tema chiaro' : 'Passa al tema scuro';
+}
+
 function initTheme() {
   const savedTheme = localStorage.getItem('theme');
-  const themeBtn = document.getElementById('themeToggleBtn');
   if (savedTheme === 'dark') {
     document.body.classList.add('dark-theme');
-    themeBtn.textContent = '☀️ Tema Chiaro';
+    setThemeButton(true);
   } else {
     document.body.classList.remove('dark-theme');
-    themeBtn.textContent = '🌙 Tema Scuro';
+    setThemeButton(false);
   }
 }
 
 function toggleTheme() {
-  const themeBtn = document.getElementById('themeToggleBtn');
   if (document.body.classList.contains('dark-theme')) {
     document.body.classList.remove('dark-theme');
     localStorage.setItem('theme', 'light');
-    themeBtn.textContent = '🌙 Tema Scuro';
+    setThemeButton(false);
   } else {
     document.body.classList.add('dark-theme');
     localStorage.setItem('theme', 'dark');
-    themeBtn.textContent = '☀️ Tema Scuro';
+    setThemeButton(true);
   }
 }
 
@@ -1350,39 +1362,40 @@ const RECOMMENDED_ORDER = [
   ["Baby Octopus", 3.5],
   ["Labubu", 20],
   ["Violetta", 70],
-  ["Pikachu", null],
   ["Draghetto", 12],
+  ["Pikachu", null],
+  ["Lettere Alfabeto", 5],
   ["Rumi (Huntrix)", 25],
   ["Bambola", 70],
-  ["Chopper One Piece", 20],
   ["Balenottera", 3.5],
-  ["Winnie the Pooh", 18],
+  ["Chopper One Piece", 20],
   ["Gemelline", 25],
-  ["Lettere Alfabeto", 5],
   ["Kuromi", 15],
+  ["Farfallina", 3.5],
   ["Squirtle", null],
   ["Coccinella", 15],
-  ["Melody", 15],
-  ["Farfallina", 3.5],
-  ["Charmender", null],
+  ["Winnie the Pooh", 18],
   ["Smiski", 12],
-  ["Hello Kitty", 12],
-  ["Pecorella", 10],
   ["Bambolina", 25],
+  ["Pecorella", 10],
+  ["Melody", 15],
+  ["Funghetto", 12],
+  ["Charmender", null],
   ["Pupazzo di Neve", 18],
-  ["Pinguino Papà", 18],
   ["Palle di Natale", 5],
   ["Gnomo", 18],
+  ["Pinguino Papà", 18],
   ["Pinguino Mamma", 18],
-  ["Albero di Natale", 20],
-  ["Folletto del Bosco", 10],
   ["Pinguino Baby", 18],
+  ["Albero di Natale", 20],
   ["Ghirlanda", 5],
+  ["Folletto del Bosco", 10],
   ["Palla di Natale", 10],
   ["Gnomo", 5],
   ["Cappellino Babbo Natale", 3.5],
   ["Bastoncino Natalizio", 3.5],
   ["Alberino di Natale", 5],
+  ["Hello Kitty", 12],
   ["Goku", 20],
   ["Orsetta Molly", 18],
   ["Luffy One Piece", 20],
@@ -1415,7 +1428,6 @@ const RECOMMENDED_ORDER = [
   ["Zainetto", 5],
   ["Pallina Volley", 5],
   ["Stellina", 3.5],
-  ["Funghetto", 12],
   ["Girandola Portachiavi", 5],
   ["Zucca", 5],
   ["Smile", 5],
