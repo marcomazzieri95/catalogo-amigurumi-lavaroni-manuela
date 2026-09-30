@@ -1300,31 +1300,60 @@ async function uploadToCloudinary(dataUrl){
   return json.secure_url.replace('/upload/', `/upload/${CLOUD_TRANSFORM}/`);
 }
 
+function fieldSizes(){
+  const sizes = {};
+  products.forEach(p => Object.keys(p).forEach(k => {
+    sizes[k] = (sizes[k] || 0) + JSON.stringify(p[k]).length;
+  }));
+  return Object.entries(sizes).sort((a,b) => b[1]-a[1]).slice(0,3)
+    .map(([k,v]) => `${k}: ${(v/1048576).toFixed(2)} MB`).join(', ');
+}
+
 async function moveImagesToCloud(){
   if(!isUnlocked){ alert('Azione non permessa in modalità cliente.'); return; }
   if(!cloudinaryEnabled()){
     alert('Prima inserisci cloudName e uploadPreset di Cloudinary nel codice (sezione CLOUDINARY).');
     return;
   }
-  const todo = [];
+  const isData = v => typeof v === 'string' && v.startsWith('data:');
+  const jobs = [];
+  let removed = 0;
   for (const p of products){
-    if (Array.isArray(p.images)) p.images.forEach(im => { if (im && typeof im.url === 'string' && im.url.startsWith('data:')) todo.push(im); });
+    let hasImages = false;
+    if (Array.isArray(p.images)){
+      p.images.forEach((im, i) => {
+        if (isData(im)) { hasImages = true; jobs.push({ get: () => p.images[i], set: v => { p.images[i] = v; } }); }
+        else if (im && typeof im.url === 'string' && im.url) {
+          hasImages = true;
+          if (isData(im.url)) jobs.push({ get: () => im.url, set: v => { im.url = v; } });
+        }
+      });
+    }
+    if (isData(p.imageUrl)){
+      if (hasImages) { delete p.imageUrl; removed++; }   // campo vecchio duplicato: non viene mostrato
+      else jobs.push({ get: () => p.imageUrl, set: v => { p.imageUrl = v; } });
+    }
   }
-  if(!todo.length){ alert('Non ci sono immagini da spostare: sono già tutte link.'); return; }
-  if(!confirm(`Sposto ${todo.length} immagini su Cloudinary. Non chiudere la pagina finché non compare il messaggio finale.`)) return;
+  if(!jobs.length && !removed){
+    alert('Non ci sono immagini da spostare: sono già tutte link.\nCampi più pesanti: ' + fieldSizes());
+    return;
+  }
+  if(!confirm(`Sposto ${jobs.length} immagini su Cloudinary` + (removed ? ` e tolgo ${removed} copie vecchie duplicate` : '') + `. Non chiudere la pagina finché non compare il messaggio finale.`)) return;
 
   const btn = document.getElementById('moveToCloud');
   const label = btn.textContent;
   let ok = 0, fail = 0;
-  for (let i = 0; i < todo.length; i++){
-    btn.textContent = `Carico ${i+1}/${todo.length}…`;
-    try { todo[i].url = await uploadToCloudinary(todo[i].url); ok++; }
+  for (let i = 0; i < jobs.length; i++){
+    btn.textContent = `Carico ${i+1}/${jobs.length}…`;
+    try { jobs[i].set(await uploadToCloudinary(jobs[i].get())); ok++; }
     catch(e){ console.warn('Immagine non spostata:', e); fail++; }
   }
   btn.textContent = label;
   const sizeAfter = JSON.stringify(products).length;
   await saveProducts();
-  alert(`Fatto: ${ok} immagini spostate, ${fail} non riuscite. Il catalogo ora pesa circa ${(sizeAfter/1048576).toFixed(2)} MB.` + (fail ? ' Puoi rilanciare il pulsante per riprovare quelle rimaste.' : ''));
+  alert(`Fatto: ${ok} immagini spostate, ${fail} non riuscite` + (removed ? `, ${removed} copie duplicate rimosse` : '') + `. Il catalogo ora pesa circa ${(sizeAfter/1048576).toFixed(2)} MB.` +
+    (sizeAfter > 1048576 ? `\nCampi più pesanti: ${fieldSizes()}` : '') +
+    (fail ? '\nPuoi rilanciare il pulsante per riprovare quelle rimaste.' : ''));
 }
 document.getElementById('moveToCloud').addEventListener('click', moveImagesToCloud);
 
