@@ -1040,6 +1040,7 @@
     <button class="export-btn admin-only" id="exportPdf">Esporta PDF</button>
     <button class="export-btn admin-only" id="exportBackup">Esporta backup</button>
     <button class="export-btn admin-only" id="importBackup">Importa backup</button>
+    <button class="export-btn admin-only" id="applyOrder">Applica ordine consigliato</button>
     <input type="file" id="importFile" accept="application/json" style="display:none;">
     <button class="add-btn admin-only" id="openAdd">+ Nuovo prodotto</button>
   </div>
@@ -1341,6 +1342,169 @@ async function uploadToCloudinary(dataUrl){
   return json.secure_url.replace('/upload/', `/upload/${CLOUD_TRANSFORM}/`);
 }
 
+
+// ---- Ordine consigliato del catalogo (vetrina, Natale, personaggi, portachiavi, Pasqua, accessori) ----
+const RECOMMENDED_ORDER = [
+  ["Bambola Grande", 80],
+  ["Stitch", 15],
+  ["Baby Octopus", 3.5],
+  ["Labubu", 20],
+  ["Violetta", 70],
+  ["Pikachu", null],
+  ["Draghetto", 12],
+  ["Rumi (Huntrix)", 25],
+  ["Bambola", 70],
+  ["Chopper One Piece", 20],
+  ["Balenottera", 3.5],
+  ["Winnie the Pooh", 18],
+  ["Gemelline", 25],
+  ["Lettere Alfabeto", 5],
+  ["Kuromi", 15],
+  ["Squirtle", null],
+  ["Coccinella", 15],
+  ["Melody", 15],
+  ["Farfallina", 3.5],
+  ["Charmender", null],
+  ["Smiski", 12],
+  ["Hello Kitty", 12],
+  ["Pecorella", 10],
+  ["Bambolina", 25],
+  ["Pupazzo di Neve", 18],
+  ["Pinguino Papà", 18],
+  ["Palle di Natale", 5],
+  ["Gnomo", 18],
+  ["Pinguino Mamma", 18],
+  ["Albero di Natale", 20],
+  ["Folletto del Bosco", 10],
+  ["Pinguino Baby", 18],
+  ["Ghirlanda", 5],
+  ["Palla di Natale", 10],
+  ["Gnomo", 5],
+  ["Cappellino Babbo Natale", 3.5],
+  ["Bastoncino Natalizio", 3.5],
+  ["Alberino di Natale", 5],
+  ["Goku", 20],
+  ["Orsetta Molly", 18],
+  ["Luffy One Piece", 20],
+  ["Volpe", 18],
+  ["Zoro One Piece", 20],
+  ["Cagnolino", 15],
+  ["Dumbo", null],
+  ["Orsetto con Salopette", 18],
+  ["Jigglypuff", null],
+  ["Gattino", 15],
+  ["Puffo", 18],
+  ["Orsetto", 15],
+  ["Minions Kevin", 10],
+  ["Polpo Cambia Umore", 18],
+  ["Minions Bob", 10],
+  ["Polipo", 10],
+  ["Minions Stuart", 10],
+  ["Alpaca", 15],
+  ["Angel (Lilo e Stitch)", 15],
+  ["Coccinella Addormentata", 12],
+  ["Pimpy", 15],
+  ["Riccio", 8],
+  ["Teletubbies", 18],
+  ["Gufetto", 8],
+  ["Personaggi Madagascar", 15],
+  ["Topino con Pantaloni", 15],
+  ["Pinguino con Sciarpa", 10],
+  ["Doudou", 20],
+  ["Farfalla Smontabile", 20],
+  ["Zainetto", 5],
+  ["Pallina Volley", 5],
+  ["Stellina", 3.5],
+  ["Funghetto", 12],
+  ["Girandola Portachiavi", 5],
+  ["Zucca", 5],
+  ["Smile", 5],
+  ["Tartarughina", 5],
+  ["Stella", 10],
+  ["Pinguino", 5],
+  ["Set Basco e Scaldacollo", 30],
+  ["Borsetta da Bimba", 15],
+  ["Pochette", 20],
+  ["Scarpetta Neonato", 20],
+  ["Limone", 5],
+  ["Pesciolino", 5],
+  ["Fantasmino", 5],
+  ["Zampetta di Gatto", 5],
+  ["Farfallina", 5],
+  ["Stellina Sottile", 3.5],
+  ["Coccinella Portachiavi", 3.5],
+  ["Topino", 5],
+  ["M&M's Portachiavi", 8],
+  ["Pomodoro Allungabile Portachiavi", 8],
+  ["Cappello con Pon Pon", 15],
+  ["Cappellino Bimba", 15],
+  ["Scatola Portagioie", 8],
+  ["Segnalibro", 10],
+  ["Coccinella Segnalibri", 3.5],
+  ["Profumatore da Armadio", 5],
+  ["Infradito Portachiavi", 5],
+  ["Caramella Portachiavi", 5],
+  ["Borsetta Portachiavi", 5],
+  ["Borsetta Portachiavi", 5],
+  ["Capelletto Portachiavi", 5],
+  ["Coyote Portachiavi", 15],
+  ["Charme da Borsetta", 15],
+  ["Camelia", 5],
+  ["Cuori Intrecciati", 10],
+  ["Cuore Morbido", 5],
+  ["Pulcino Appena Nato", 12],
+  ["Coniglio", 15],
+  ["Pulcino", 8],
+  ["Paperella", 10],
+  ["Gallinella", 15],
+  ["Galletto", 18],
+  ["Anatroccolo", 10],
+  ["Coniglietto Pasquale", 15],
+  ["Colomba", 10],
+  ["Campanelle", 5],
+  ["Girasole", 20],
+  ["Rana Sottobicchiere", 8],
+  ["Topo Sottobicchiere", 8],
+  ["Scrat Sottobicchiere", 8],
+  ["Girandola", 15],
+  ["Gattino con Cuore", 18],
+  ["Orso Teddy", 20]
+];
+
+function normName(n){
+  return String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+async function applyRecommendedOrder(){
+  if(!isUnlocked){ alert('Azione non permessa in modalità cliente.'); return; }
+  const used = new Set();
+  const ordered = [];
+  const missing = [];
+  for (const [name, price] of RECOMMENDED_ORDER){
+    const key = normName(name);
+    const cands = products.filter(pr => !used.has(pr) && normName(pr.name) === key);
+    if (!cands.length){ missing.push(name); continue; }
+    let pick = cands[0];
+    if (cands.length > 1 && price !== null){
+      pick = cands.slice().sort((a, b) =>
+        Math.abs((parseFloat(a.price) || 0) - price) - Math.abs((parseFloat(b.price) || 0) - price))[0];
+    }
+    used.add(pick);
+    ordered.push(pick);
+  }
+  const rest = products.filter(pr => !used.has(pr));
+  const msg = `Riordino ${ordered.length} prodotti secondo l'ordine consigliato e salvo.` +
+    (rest.length ? `\n${rest.length} prodotti non presenti nell'elenco andranno in fondo.` : '') +
+    (missing.length ? `\nNon trovati nel catalogo: ${missing.join(', ')}.` : '') +
+    `\nL'ordine attuale personalizzato verrà sostituito. Continuo?`;
+  if(!confirm(msg)) return;
+  const finalList = ordered.concat(rest);
+  finalList.forEach((pr, i) => { pr.customOrder = i + 1; });
+  products = finalList;
+  await saveProducts();
+  alert('Fatto! Ordine applicato. Se non lo vedi, scegli "Ordine personalizzato" nel menu.');
+}
+document.getElementById('applyOrder').addEventListener('click', applyRecommendedOrder);
 
 function sortProductList(list){
   return list.slice().sort((a,b)=>{
