@@ -305,6 +305,10 @@
   .badge-tag.evidenza { background: #FFF2C6; color: #8C6200; border: 1px solid #E6C200; }
   .badge-tag.novita { background: #E1F5FE; color: #0277BD; border: 1px solid #81D4FA; }
   .badge-tag.bestseller { background: #FBE9E7; color: #D84315; border: 1px solid #FFAB91; }
+  .badge-corner { display: none; }
+  .badge-corner.evidenza { background: #FFF2C6; color: #8C6200; border: 1px solid #E6C200; }
+  .badge-corner.novita { background: #E1F5FE; color: #0277BD; border: 1px solid #81D4FA; }
+  .badge-corner.bestseller { background: #FBE9E7; color: #D84315; border: 1px solid #FFAB91; }
 
   .like-btn {
     background: none;
@@ -621,7 +625,6 @@
   .detail-hint { display: none; }
   .nav-lbl-m { display: none; }
   @media (max-width: 580px) {
-    .detail-imgbox { max-height: 46vh; }
     .nav-lbl-d { display: none; }
     .nav-lbl-m { display: inline; }
     .detail-hint {
@@ -695,6 +698,22 @@
     height: 100%;
     object-fit: cover;
     display: block;
+  }
+
+  /* Cellulare: nella scheda la foto si vede per intero (nessun ritaglio), con altezza massima per lasciare spazio al testo */
+  @media (max-width: 580px) {
+    .detail-imgbox,
+    .detail-imgbox.ratio-vertical,
+    .detail-imgbox.ratio-vertical-tall,
+    .detail-imgbox.ratio-square,
+    .detail-imgbox.ratio-horizontal { aspect-ratio: auto; min-height: 200px; }
+    .detail-imgbox img {
+      width: 100%;
+      height: auto;
+      max-height: 68vh;
+      object-fit: contain;
+      object-position: center center !important;
+    }
   }
   
   .contact-btn-wa {
@@ -947,8 +966,28 @@
       font-size: 12px;
       margin-bottom: 2px;
     }
-    .desc, .meta, .avail, .cat-row, .badge-tag {
+    .desc, .meta, .avail, .cat-row, .card .badge-tag {
       display: none !important;
+    }
+    /* sulle card piccole il badge diventa una targhetta sopra la foto */
+    .badge-corner {
+      display: block;
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      z-index: 3;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 7.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      line-height: 1.3;
+      padding: 1px 5px;
+      border-radius: 8px;
+      white-space: nowrap;
+      max-width: calc(100% - 6px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: 0 1px 2px rgba(0,0,0,.25);
     }
     .price {
       font-size: 11px;
@@ -1744,7 +1783,7 @@ function cardHtml(p){
         <button type="button" class="mv-btn" onclick="moveStep(event,'${p.id}',1)" title="Sposta avanti">›</button>
         <button type="button" class="mv-btn" onclick="moveToTop(event,'${p.id}')" title="Metti come primo">⤒ In cima</button>
       </div>
-      <div class="imgbox ${ratioClass}" id="box-${p.id}">${img}${carouselControls}</div>
+      <div class="imgbox ${ratioClass}" id="box-${p.id}">${img}${carouselControls}${p.badge && BADGE_LABELS[p.badge] ? `<span class="badge-corner ${p.badge}">${BADGE_LABELS[p.badge]}</span>` : ''}</div>
       <div class="cat-row">
         ${renderHashtagPills(p)}
       </div>
