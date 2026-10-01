@@ -765,6 +765,22 @@
     box-shadow:0 20px 40px var(--shadow);
     overflow:hidden;
   }
+  .login-modal { max-width: 380px; }
+  .login-body { padding: 18px 26px 6px; display: flex; flex-direction: column; gap: 12px; }
+  .login-body label { display: flex; flex-direction: column; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--muted); }
+  .login-body input[type=email], .login-body input[type=password] {
+    padding: 10px; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--bg); color: var(--ink); font-size: 16px; font-family: inherit;
+  }
+  .login-body .login-remember { flex-direction: row; align-items: center; gap: 8px; }
+  .login-err { color: #c0392b; font-size: 12px; min-height: 16px; margin: 0; font-family: 'IBM Plex Mono', monospace; }
+  .login-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 6px 26px 20px; }
+  .login-actions button {
+    background: none; border: 1px solid var(--line); border-radius: 16px; padding: 8px 16px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink); cursor: pointer;
+  }
+  .login-actions button.login-primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .login-actions button:disabled { opacity: .6; cursor: default; }
   .modal h2{
     font-family:'Fraunces',serif;font-weight:600;font-size:24px;
     margin:0;
@@ -1174,13 +1190,92 @@ const BADGE_LABELS = {
   bestseller: '🔥 Più Venduto'
 };
 
-const UNLOCK_KEY = 'catalogo-unlocked';
-const EDIT_CODE = 'Marmottalaser5961';
+// ---- Accesso amministratore con Firebase Authentication (email + password) ----
+// Incolla qui la "chiave API Web" (Impostazioni progetto -> Generale -> la tua app web -> apiKey)
+const FIREBASE_API_KEY = 'AIzaSyD03MGD44PeLuI4i0hgxwa0Ix7nK7HOjAs';
+// Identificativo (UID) dell'unico account autorizzato a modificare il catalogo
+const ADMIN_UID = 'aYXsjC5gFIY8FlUEuIC6WFoJJkU2';
+const AUTH_KEY = 'catalogo-auth';
+let authSession = null;   // { idToken, refreshToken, expiresAt, uid, email }
 let isUnlocked = false;
+let likesRemote = {};
 
-try { 
-  isUnlocked = sessionStorage.getItem(UNLOCK_KEY) === '1'; 
-} catch(e){}
+function storeSession(remember){
+  const raw = JSON.stringify(authSession);
+  try {
+    if (remember) { localStorage.setItem(AUTH_KEY, raw); sessionStorage.removeItem(AUTH_KEY); }
+    else { sessionStorage.setItem(AUTH_KEY, raw); localStorage.removeItem(AUTH_KEY); }
+  } catch(e){}
+}
+function clearStoredSession(){
+  try { sessionStorage.removeItem(AUTH_KEY); localStorage.removeItem(AUTH_KEY); } catch(e){}
+}
+function readStoredSession(){
+  try {
+    const raw = sessionStorage.getItem(AUTH_KEY) || localStorage.getItem(AUTH_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e){ return null; }
+}
+
+async function signIn(email, password, remember){
+  if (!FIREBASE_API_KEY) throw new Error('NO_API_KEY');
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ email, password, returnSecureToken: true })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data.error && data.error.message) || 'ERRORE');
+  if (data.localId !== ADMIN_UID) throw new Error('UID_DIVERSO:' + data.localId);
+  authSession = {
+    idToken: data.idToken,
+    refreshToken: data.refreshToken,
+    expiresAt: Date.now() + (parseInt(data.expiresIn, 10) || 3600) * 1000,
+    uid: data.localId,
+    email: data.email
+  };
+  storeSession(remember);
+  isUnlocked = true;
+}
+
+async function refreshSession(){
+  const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(authSession.refreshToken)
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error('REFRESH_FALLITO');
+  authSession.idToken = data.id_token;
+  authSession.refreshToken = data.refresh_token || authSession.refreshToken;
+  authSession.expiresAt = Date.now() + (parseInt(data.expires_in, 10) || 3600) * 1000;
+  const remember = !!localStorage.getItem(AUTH_KEY);
+  storeSession(remember);
+}
+
+async function getAuthToken(){
+  if (!authSession) return null;
+  if (Date.now() > authSession.expiresAt - 60000){
+    try { await refreshSession(); }
+    catch(e){ signOut(); return null; }
+  }
+  return authSession.idToken;
+}
+
+function signOut(){
+  authSession = null;
+  isUnlocked = false;
+  clearStoredSession();
+  updateAdminUI();
+}
+
+async function restoreSession(){
+  const stored = readStoredSession();
+  if (!stored || !stored.refreshToken || stored.uid !== ADMIN_UID || !FIREBASE_API_KEY) return;
+  authSession = stored;
+  const token = await getAuthToken();
+  if (token){ isUnlocked = true; updateAdminUI(); }
+}
 
 function updateAdminUI(){
   const btn = document.getElementById('modeToggleBtn');
@@ -1195,28 +1290,79 @@ function updateAdminUI(){
   }
 }
 
+function loginErrorText(msg){
+  if (msg === 'NO_API_KEY') return 'Manca la chiave API di Firebase nel codice (FIREBASE_API_KEY).';
+  if (msg.startsWith('UID_DIVERSO:')) return 'Accesso riuscito, ma questo account non è quello autorizzato. Il suo UID è: ' + msg.slice(12);
+  if (/INVALID_LOGIN_CREDENTIALS|INVALID_PASSWORD|EMAIL_NOT_FOUND|INVALID_EMAIL/.test(msg)) return 'Email o password non corrette.';
+  if (msg.startsWith('TOO_MANY_ATTEMPTS')) return 'Troppi tentativi: riprova tra qualche minuto.';
+  if (msg === 'Failed to fetch') return 'Impossibile collegarsi: controlla la connessione.';
+  return 'Errore di accesso: ' + msg;
+}
+
+function openLoginDialog(){
+  return new Promise(resolve => {
+    if (document.getElementById('loginOverlay')) { resolve(false); return; }
+    let lastEmail = '';
+    try { lastEmail = localStorage.getItem('catalogo-last-email') || ''; } catch(e){}
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.id = 'loginOverlay';
+    ov.style.zIndex = '60';
+    ov.innerHTML = `
+      <div class="modal login-modal">
+        <h2>Accesso amministratore</h2>
+        <div class="login-body">
+          <label>Email<input type="email" id="loginEmail" autocomplete="username" value="${escapeAttr(lastEmail)}"></label>
+          <label>Password<input type="password" id="loginPass" autocomplete="current-password"></label>
+          <label class="login-remember"><input type="checkbox" id="loginRemember"> Resta connesso su questo dispositivo</label>
+          <p class="login-err" id="loginErr"></p>
+        </div>
+        <div class="login-actions">
+          <button type="button" id="loginCancel">Annulla</button>
+          <button type="button" id="loginOk" class="login-primary">Accedi</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const emailEl = document.getElementById('loginEmail');
+    const passEl = document.getElementById('loginPass');
+    const errEl = document.getElementById('loginErr');
+    const okBtn = document.getElementById('loginOk');
+    (lastEmail ? passEl : emailEl).focus();
+
+    const close = (result) => { ov.remove(); resolve(result); };
+    const submit = async () => {
+      const email = emailEl.value.trim();
+      const password = passEl.value;
+      if (!email || !password){ errEl.textContent = 'Inserisci email e password.'; return; }
+      okBtn.disabled = true; okBtn.textContent = 'Accesso…'; errEl.textContent = '';
+      try {
+        await signIn(email, password, document.getElementById('loginRemember').checked);
+        try { localStorage.setItem('catalogo-last-email', email); } catch(e){}
+        updateAdminUI();
+        close(true);
+      } catch(e) {
+        errEl.textContent = loginErrorText(String(e.message || e));
+        okBtn.disabled = false; okBtn.textContent = 'Accedi';
+        passEl.value = '';
+      }
+    };
+    okBtn.addEventListener('click', submit);
+    document.getElementById('loginCancel').addEventListener('click', () => close(false));
+    ov.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+      else if (e.key === 'Escape') close(false);
+    });
+  });
+}
+
 function toggleAdminMode(){
-  if(isUnlocked){
-    isUnlocked = false;
-    try{ sessionStorage.removeItem(UNLOCK_KEY); }catch(e){}
-    updateAdminUI();
-  } else {
-    const code = prompt('Inserisci il codice per sbloccare la modalità modifica:');
-    if(code === null) return;
-    if(code === EDIT_CODE){
-      isUnlocked = true;
-      try{ sessionStorage.setItem(UNLOCK_KEY, '1'); }catch(e){}
-      updateAdminUI();
-    } else {
-      alert('Codice non corretto.');
-    }
-  }
+  if (isUnlocked) signOut();
+  else openLoginDialog();
 }
 
 function requireUnlock(action){
-  if(isUnlocked){ action(); return; }
-  toggleAdminMode();
-  if(isUnlocked) action();
+  if (isUnlocked) { action(); return; }
+  openLoginDialog().then(ok => { if (ok) action(); });
 }
 
 function setThemeButton(isDark) {
@@ -1267,6 +1413,18 @@ function normalizeProducts(data){
   return list.filter(p => p && p.id);
 }
 
+async function loadLikes(){
+  try {
+    const r = await fetch(`${BASE_URL}/likes.json`);
+    if (!r.ok) return;
+    const m = await r.json();
+    if (m && typeof m === 'object') {
+      likesRemote = m;
+      products.forEach(p => { if (typeof m[p.id] === 'number') p.likes = m[p.id]; });
+    }
+  } catch(e){}
+}
+
 async function fetchProducts(){
   const cache = readCache();
   try {
@@ -1280,6 +1438,7 @@ async function fetchProducts(){
     // 2) se non è cambiato nulla uso la copia salvata nel browser
     if (cache && remoteVersion && cache.version === remoteVersion && Array.isArray(cache.data)) {
       products = normalizeProducts(cache.data);
+      await loadLikes();
       render();
       return;
     }
@@ -1290,12 +1449,14 @@ async function fetchProducts(){
     const data = await res.json();
     products = normalizeProducts(data);
     if (remoteVersion) writeCache(remoteVersion, products);
+    await loadLikes();
     render();
   } catch (err) {
     console.error('Errore di caricamento:', err);
     // se il database non risponde, mostro l'ultima copia salvata
     if (cache && Array.isArray(cache.data) && cache.data.length) {
       products = normalizeProducts(cache.data);
+      await loadLikes();
       render();
       return;
     }
@@ -1312,16 +1473,22 @@ async function saveProducts(){
     alert('Azione non permessa in modalità cliente.');
     return;
   }
+  const token = await getAuthToken();
+  if(!token){
+    alert('Sessione scaduta: accedi di nuovo dalla modalità cliente.');
+    return;
+  }
   try{
-    const res = await fetch(FIREBASE_URL, {
+    const q = '?auth=' + encodeURIComponent(token);
+    const res = await fetch(FIREBASE_URL + q, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(products)
     });
-    if(!res.ok) throw new Error('Salvataggio fallito');
+    if(!res.ok) throw new Error('Salvataggio fallito (' + res.status + ')');
     // aggiorno la "versione" così i visitatori scaricano solo se qualcosa è cambiato
     const version = Date.now();
-    await fetch(`${BASE_URL}/meta/updatedAt.json`, {
+    await fetch(`${BASE_URL}/meta/updatedAt.json${q}`, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(version)
@@ -1330,7 +1497,7 @@ async function saveProducts(){
     render();
   }catch(e){
     console.error('Errore durante il salvataggio cloud:', e);
-    alert('Errore durante il salvataggio: controlla le regole Firebase.');
+    alert('Errore durante il salvataggio: ' + (e.message || '') + '\nControlla di aver fatto l\'accesso e le regole Firebase.');
   }
 }
 
@@ -1842,10 +2009,15 @@ function toggleLike(e, productId) {
     likeBtn.classList.add('liked');
   }
 
-  fetch(`${BASE_URL}/products/${productId}.json`, {
-    method: 'PATCH',
+  const likeUrl = `${BASE_URL}/likes/${encodeURIComponent(productId)}.json`;
+  const likeBody = (typeof likesRemote[productId] === 'number')
+    ? { ".sv": { "increment": isLiked ? -1 : 1 } }   // incremento fatto dal server
+    : product.likes;                                  // primo "mi piace": parto dal valore mostrato
+  likesRemote[productId] = product.likes;
+  fetch(likeUrl, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ likes: product.likes })
+    body: JSON.stringify(likeBody)
   }).catch(err => console.error("Errore aggiornamento like:", err));
 }
 
@@ -2592,6 +2764,7 @@ document.getElementById('exportPdf').addEventListener('click', () => {
 });
 
 initTheme();
+restoreSession();
 fetchProducts();
 </script>
 </body>
