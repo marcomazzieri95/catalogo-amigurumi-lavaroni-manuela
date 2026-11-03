@@ -700,19 +700,21 @@
     display: block;
   }
 
-  /* Cellulare: nella scheda la foto si vede per intero (nessun ritaglio), con altezza massima per lasciare spazio al testo */
+  /* Cellulare: nella scheda la foto ha un'altezza fissa (ritagliata come nel catalogo),
+     così titolo, prezzo e pulsante restano nella stessa schermata e si può scorrere subito al successivo */
   @media (max-width: 580px) {
+    .detail-modal { padding: 14px; max-height: 92vh; max-height: 92dvh; }
+    .detail-grid { gap: 12px; margin-top: 8px; }
     .detail-imgbox,
     .detail-imgbox.ratio-vertical,
     .detail-imgbox.ratio-vertical-tall,
     .detail-imgbox.ratio-square,
-    .detail-imgbox.ratio-horizontal { aspect-ratio: auto; min-height: 200px; }
+    .detail-imgbox.ratio-horizontal { aspect-ratio: auto; height: 36vh; height: 36dvh; min-height: 180px; }
     .detail-imgbox img {
       width: 100%;
-      height: auto;
-      max-height: 68vh;
-      object-fit: contain;
-      object-position: center center !important;
+      height: 100%;
+      max-height: none;
+      object-fit: cover;
     }
   }
   
