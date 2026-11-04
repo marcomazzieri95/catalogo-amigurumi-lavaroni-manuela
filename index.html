@@ -715,7 +715,10 @@
     .detail-imgbox.ratio-vertical,
     .detail-imgbox.ratio-vertical-tall,
     .detail-imgbox.ratio-square,
-    .detail-imgbox.ratio-horizontal { aspect-ratio: auto; height: 50vh; height: 50dvh; min-height: 220px; }
+    .detail-imgbox.ratio-horizontal { aspect-ratio: auto; height: 58vh; height: 58dvh; min-height: 220px; }
+    /* foto orizzontali e quadrate: stessa forma che hanno nel catalogo */
+    .detail-imgbox.ratio-horizontal { height: auto; aspect-ratio: 4/3; min-height: 0; }
+    .detail-imgbox.ratio-square { height: auto; aspect-ratio: 1/1; min-height: 0; }
     .detail-imgbox img {
       width: 100%;
       height: 100%;
