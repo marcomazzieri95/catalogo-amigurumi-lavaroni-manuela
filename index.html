@@ -708,13 +708,14 @@
   /* Cellulare: nella scheda la foto ha un'altezza fissa (ritagliata come nel catalogo),
      così titolo, prezzo e pulsante restano nella stessa schermata e si può scorrere subito al successivo */
   @media (max-width: 580px) {
-    .detail-modal { padding: 14px; max-height: 92vh; max-height: 92dvh; }
+    .detail-modal { padding: 12px; max-height: 94vh; max-height: 94dvh; }
+    .detail-hint { margin-top: 8px; }
     .detail-grid { gap: 12px; margin-top: 8px; }
     .detail-imgbox,
     .detail-imgbox.ratio-vertical,
     .detail-imgbox.ratio-vertical-tall,
     .detail-imgbox.ratio-square,
-    .detail-imgbox.ratio-horizontal { aspect-ratio: auto; height: 36vh; height: 36dvh; min-height: 180px; }
+    .detail-imgbox.ratio-horizontal { aspect-ratio: auto; height: 50vh; height: 50dvh; min-height: 220px; }
     .detail-imgbox img {
       width: 100%;
       height: 100%;
@@ -2151,8 +2152,10 @@ function openDetailModal(productId, slideDir) {
   overlay.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) { tracking = false; return; }
     tx = e.touches[0].clientX; ty = e.touches[0].clientY; tracking = true;
-    startAtTop = modalEl.scrollTop <= 2;
-    startAtBottom = modalEl.scrollTop + modalEl.clientHeight >= modalEl.scrollHeight - 2;
+    // uno scorrimento che parte dalla foto cambia subito articolo, senza dover arrivare in fondo alla scheda
+    const onPhoto = !!(e.target.closest && e.target.closest('.detail-imgbox') && !e.target.closest('.img-nav'));
+    startAtTop = onPhoto || modalEl.scrollTop <= 2;
+    startAtBottom = onPhoto || modalEl.scrollTop + modalEl.clientHeight >= modalEl.scrollHeight - 2;
   }, { passive: true });
   overlay.addEventListener('touchend', (e) => {
     if (!tracking) return;
