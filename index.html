@@ -1089,7 +1089,7 @@
 
     /* ===== Raccoglitore da sfogliare: 8 articoli per pagina A4 (2 colonne x 4 righe) ===== */
     #printArea.binder .bpage{
-      height:276mm;
+      height:296mm; box-sizing:border-box; padding:10mm;
       display:grid;
       grid-template-columns:1fr 1fr;
       grid-template-rows:repeat(4,1fr);
@@ -2832,10 +2832,10 @@ document.getElementById('exportBinder').addEventListener('click', () => {
   printArea.className = 'binder';
   printArea.innerHTML = pages;
 
-  // pagina A4 verticale con margini fissi, solo per questa stampa
+  // pagina A4 verticale senza margini del browser (così spariscono data, indirizzo e numero di pagina); i margini sono nel layout
   const pageStyle = document.createElement('style');
   pageStyle.id = 'binderPageStyle';
-  pageStyle.textContent = '@page{ size: A4 portrait; margin: 10mm; }';
+  pageStyle.textContent = '@page{ size: A4 portrait; margin: 0; }';
   document.head.appendChild(pageStyle);
   const cleanup = () => {
     pageStyle.remove();
