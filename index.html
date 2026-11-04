@@ -1086,6 +1086,33 @@
     #printArea .pmat{font-size:10px;color:#8C8272;margin:1px 0;}
     #printArea .pmat b{color:#2B241C;font-weight:500;}
     #printArea .pdesc{font-size:10px;color:#4a4136;margin:4px 0 0;line-height:1.35;}
+
+    /* ===== Raccoglitore da sfogliare: 8 articoli per pagina A4 (2 colonne x 4 righe) ===== */
+    #printArea.binder .bpage{
+      height:276mm;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      grid-template-rows:repeat(4,1fr);
+      gap:4mm 5mm;
+      break-after:page; page-break-after:always;
+    }
+    #printArea.binder .bpage:last-child{ break-after:auto; page-break-after:auto; }
+    #printArea.binder .bitem{
+      display:flex; gap:3mm; min-height:0; overflow:hidden;
+      border:1px solid #DDD2BC; border-radius:3mm; padding:2.5mm; background:#FFFDF8;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+    #printArea.binder .bimg{
+      flex:0 0 52%; height:100%; border-radius:2mm; overflow:hidden; background:#F6F1E7;
+      display:flex; align-items:center; justify-content:center;
+      -webkit-print-color-adjust:exact; print-color-adjust:exact;
+    }
+    #printArea.binder .bimg img{ width:100%; height:100%; object-fit:cover; display:block; }
+    #printArea.binder .binfo{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+    #printArea.binder .binfo h3{ font-family:'Fraunces',serif; font-size:14px; line-height:1.15; margin:0 0 3px; }
+    #printArea.binder .bprice{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:15px; color:#A8532A; margin-bottom:5px; }
+    #printArea.binder .bmeta{ font-size:9.5px; line-height:1.3; color:#8C8272; margin:1px 0; }
+    #printArea.binder .bmeta b{ color:#2B241C; font-weight:500; }
   }
 </style>
 </head>
@@ -1110,6 +1137,7 @@
     </select>
     
     <button class="export-btn admin-only" id="exportPdf">Esporta PDF</button>
+    <button class="export-btn admin-only" id="exportBinder">Esporta raccoglitore (8 per pagina)</button>
     <button class="export-btn admin-only" id="exportBackup">Esporta backup</button>
     <button class="export-btn admin-only" id="importBackup">Importa backup</button>
     <button class="export-btn admin-only" id="applyOrder">Applica ordine consigliato</button>
@@ -2773,6 +2801,53 @@ document.getElementById('exportPdf').addEventListener('click', () => {
   Promise.race([
     Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; }))),
     new Promise(r => setTimeout(r, 15000))
+  ]).then(() => window.print());
+});
+
+document.getElementById('exportBinder').addEventListener('click', () => {
+  const printArea = document.getElementById('printArea');
+  const list = sortProductList(products);
+  const PER_PAGE = 8;
+  let pages = '';
+  for (let i = 0; i < list.length; i += PER_PAGE) {
+    const items = list.slice(i, i + PER_PAGE).map(p => {
+      const imgs = getImages(p);
+      const cur = imgs.length ? imgs[0] : null;
+      const imgHtml = cur
+        ? `<img src="${escapeAttr(cur.url)}" style="object-position:${cur.x}% ${cur.y}%;">`
+        : `<div class="pph">Nessuna foto</div>`;
+      return `
+        <div class="bitem">
+          <div class="bimg">${imgHtml}</div>
+          <div class="binfo">
+            <h3>${escapeHtml(p.name)}</h3>
+            <div class="bprice">${formatPrice(p.price)}</div>
+            ${p.dimensions ? `<p class="bmeta"><b>Misure:</b> ${escapeHtml(p.dimensions)}</p>` : ''}
+            ${p.materials ? `<p class="bmeta"><b>Materiale:</b> ${escapeHtml(p.materials)}</p>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+    pages += `<div class="bpage">${items}</div>`;
+  }
+  printArea.className = 'binder';
+  printArea.innerHTML = pages;
+
+  // pagina A4 verticale con margini fissi, solo per questa stampa
+  const pageStyle = document.createElement('style');
+  pageStyle.id = 'binderPageStyle';
+  pageStyle.textContent = '@page{ size: A4 portrait; margin: 10mm; }';
+  document.head.appendChild(pageStyle);
+  const cleanup = () => {
+    pageStyle.remove();
+    printArea.className = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+
+  const imgs = Array.from(printArea.querySelectorAll('img'));
+  Promise.race([
+    Promise.all(imgs.map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; }))),
+    new Promise(r => setTimeout(r, 20000))
   ]).then(() => window.print());
 });
 
